@@ -57,7 +57,7 @@ void setup()
     Serial.println(F("Error inicializando BMP180, check wiring!"));
   delay(200);
 
-
+  Serial.println(F("Loading Settings..."));
   shftVal=EEPROM.read(0);
   sendToShift();
   Serial.println(F("..NOW IAM BREATHING.."));

@@ -265,10 +265,13 @@ void sendToShift()
 
 void blip()
 {
-  tone(speakerPin, 3520);
-  delay(500);
+  tone(speakerPin, 3440);
+  delay(80);
   noTone(speakerPin);
-  tone(speakerPin, 440);
-  delay(500);
+  tone(speakerPin, 3040);
+  delay(90);
+  noTone(speakerPin);
+  tone(speakerPin, 3550);
+  delay(80);
   noTone(speakerPin);
 }

@@ -265,9 +265,10 @@ void sendToShift()
 
 void blip()
 {
-  uint16_t i;
-  playTone(5100,55);       // "m"   (short)
-  playTone(394,130);       // "eee" (long)
-  playTone(384,35);        // "eee" (up a tiny bit on end)
-  playTone(5100,40);       // "w"   (short)
+  tone(speakerPin, 3520);
+  delay(500);
+  noTone(speakerPin);
+  tone(speakerPin, 440);
+  delay(500);
+  noTone(speakerPin);
 }

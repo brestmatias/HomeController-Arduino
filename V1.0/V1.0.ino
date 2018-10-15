@@ -216,7 +216,7 @@ void readSensors()
 
   memset(jsonData, 0, sizeof jsonData);
   lngData = sprintf_P(jsonData, PSTR("{\"dhtTemp\": %s,\"dhtHum\": %s,"
-                                     "\"bmpTemp\": %s,\"bmpPress\": %s"),
+                                     "\"bmpTemp\": %s,\"bmpPress\": %s}"),
                       cTemp, cHum, bmpTemp, bmpPres);
 }
 void startWifiServer()

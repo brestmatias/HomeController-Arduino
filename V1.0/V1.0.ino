@@ -12,13 +12,18 @@
 #define speakerPin 8
 
 SoftwareSerial WIFI(3, 2); // RX | TX
+
+//Sensor press temperatura
 Adafruit_BMP085 BMP;
 
 //Sensor humedad - Temperatura
-
 #define DHTPIN 4
 #define DHTTYPE DHT22
 DHT dht(DHTPIN, DHTTYPE);
+
+//Rain Sensor
+#define rainPin 1
+int rainVal=0;
 
 char linkId;
 char serialData[256]; //entrada - salida puerto serie
@@ -34,9 +39,11 @@ void setup()
   pinMode(sftClock, OUTPUT);    // make the clock pin an output
   pinMode(sftData, OUTPUT);     // make the data pin an output
 
-  pinMode(speakerPin, OUTPUT);
-
   Serial.begin(9600);
+  
+  pinMode(speakerPin, OUTPUT);
+  pinMode(rainPin, INPUT);
+
 
   WIFI.begin(14400);
   Serial.println(F("REESTARTING WIFI..."));
@@ -89,6 +96,7 @@ void loop()
     else if (strstr(serialData, "ready"))
       resetFunc();
   }
+  rainVal = analogRead(rainPin);
 }
 
 void recibeWifiData()
@@ -217,8 +225,8 @@ void readSensors()
 
   memset(jsonData, 0, sizeof jsonData);
   lngData = sprintf_P(jsonData, PSTR("{\"dhtTemp\": %s,\"dhtHum\": %s,"
-                                     "\"bmpTemp\": %s,\"bmpPress\": %s}"),
-                      cTemp, cHum, bmpTemp, bmpPres);
+                                     "\"bmpTemp\": %s,\"bmpPress\": %s,\"rainVal\": %d}"),
+                      cTemp, cHum, bmpTemp, bmpPres,rainVal);
 }
 void startWifiServer()
 {

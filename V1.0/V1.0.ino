@@ -4,10 +4,10 @@
 #include <Adafruit_BMP085.h>
 #include <EEPROM.h>
 
-//sfhtreg
-#define sftData 12
-#define sftClock 11
-#define sftEnable 10
+//sfhtreg 74hc595
+#define sftData 12     //Ds PIN
+#define sftClock 11   //Sh_CP PIN
+#define sftLatch 10  //ST_cp conectar cap101(100pf) a GND
 
 #define speakerPin 8
 
@@ -29,8 +29,8 @@ byte shftVal = 0;
 
 void setup()
 {
-  pinMode(sftEnable, OUTPUT);   // make the data pin an output
-  digitalWrite(sftEnable, LOW); // apago shift
+  pinMode(sftLatch, OUTPUT);   // make the data pin an output
+  digitalWrite(sftLatch, LOW); // apago shift
   pinMode(sftClock, OUTPUT);    // make the clock pin an output
   pinMode(sftData, OUTPUT);     // make the data pin an output
 
@@ -59,6 +59,7 @@ void setup()
 
   Serial.println(F("Loading Settings..."));
   shftVal=EEPROM.read(0);
+
   sendToShift();
   Serial.println(F("..NOW IAM BREATHING.."));
 
@@ -258,9 +259,11 @@ int waitESPGotIp()
 
 void sendToShift()
 {
-  digitalWrite(sftEnable, LOW);
-  digitalWrite(sftEnable, HIGH);
+
+  digitalWrite(sftLatch, LOW);
   shiftOut(sftData, sftClock, MSBFIRST, shftVal);
+  digitalWrite(sftLatch, HIGH);
+  
 }
 
 void blip()

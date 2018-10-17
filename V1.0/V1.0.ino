@@ -29,8 +29,19 @@ char linkId;
 char serialData[256]; //entrada - salida puerto serie
 int lngData;
 char jsonData[150];
+char wifiCmd [20];
+String cadena;
 
 byte shftVal = 0;
+
+//Tiempo entre lecturas default
+#define lapseReadings 900000 //15Minutos
+//#define lapseReadings 600000 //10Minutos
+//#define lapseReadings 300000 //5Minutos
+//#define lapseReadings 100000
+unsigned long millisLoop;
+unsigned long startMillis;
+
 
 void setup()
 {
@@ -71,6 +82,8 @@ void setup()
   Serial.println(F("..NOW IAM BREATHING.."));
 
   blip();
+  
+  millisLoop=millis();
 }
 void (*resetFunc)(void) = 0; //reset function @ address 0
 void loop()
@@ -97,6 +110,11 @@ void loop()
       resetFunc();
   }
   rainVal = analogRead(rainPin);
+
+  if((millis()-millisLoop)>lapseReadings){
+      wifiPostDataA();
+      millisLoop=millis();
+  }
 }
 
 void recibeWifiData()
@@ -116,6 +134,42 @@ void recibeWifiData()
     responseHTTPGet();
   }
 }
+
+void wifiPostDataA(){
+    readSensors();
+
+    WIFI.flush();
+    WIFI.println(F("AT+CIPSTART=0,\"TCP\",\"monitorv1.herokuapp.com\",80"));//start a TCP connection. 
+    //waitStringWifi("OK",false);
+    waitESPCmdEnd();
+
+    int lngRequest=sprintf_P(serialData,PSTR("POST /api/stationReadings HTTP/1.1\r\n"
+                                    //"Host: 192.168.1.44:3000\r\n"
+                                    "Host: monitorv1.herokuapp.com\r\n"
+                                    "Connection: keep-alive\r\n"
+                                    "Content-Length: %d\r\n"
+                                    "Content-Type: application/json\r\n"
+                                    "Accept: */*\r\n"
+                                    "Accept-Encoding: gzip, deflate, br\r\n"
+                                    "Accept-Language: es-ES,es;q=0.8\r\n"
+                                    "\r\n%s"),strlen(jsonData),jsonData);
+    //Serial.println(serialData);
+
+    sprintf_P(wifiCmd,PSTR("AT+CIPSEND=0,%d"),lngRequest);
+    WIFI.flush();
+    WIFI.println(wifiCmd);
+    //    waitStringWifi(">",false);
+    waitESPCmdEnd();
+    
+    WIFI.flush();
+    WIFI.println(serialData);
+    //waitStringWifi("SEND OK",false);
+    waitESPCmdEnd();
+    
+    WIFI.flush();
+    WIFI.println(F("AT+CIPCLOSE=0")); 
+    //waitESPCmdEnd();
+ }
 
 void togleSalidas()
 {
@@ -182,21 +236,26 @@ void closeGate()
 void responseHTTPGet()
 {
   int lng;
-  char cmd[20];
   memset(serialData, 0, sizeof serialData);
   lng = sprintf_P(serialData, PSTR("HTTP/1.1 200 OK\r\n"
                                    "Content-Type: application/json\r\n"
                                    "Content-Length: %d \r\n"
                                    "Connection: close\r\n\r\n%s"),
                   lngData, jsonData);
-  sprintf_P(cmd, PSTR("AT+CIPSEND=%c,%d"), linkId, lng);
-  WIFI.println(cmd);
+  sprintf_P(wifiCmd, PSTR("AT+CIPSEND=%c,%d"), linkId, lng);
+  WIFI.flush(); 
+  WIFI.println(wifiCmd);
   waitESPCmdEnd();
+
+  WIFI.flush();  
   WIFI.println(serialData);
   waitESPCmdEnd();
-  memset(cmd, 0, sizeof cmd);
-  sprintf_P(cmd, PSTR("AT+CIPCLOSE=%c"), linkId);
-  WIFI.println(cmd);
+
+  memset(wifiCmd, 0, sizeof wifiCmd);
+  sprintf_P(wifiCmd, PSTR("AT+CIPCLOSE=%c"), linkId);
+  WIFI.flush();
+  WIFI.println(wifiCmd);
+  ///waitESPCmdEnd();
 }
 
 void readSensors()
@@ -225,7 +284,8 @@ void readSensors()
 
   memset(jsonData, 0, sizeof jsonData);
   lngData = sprintf_P(jsonData, PSTR("{\"dhtTemp\": %s,\"dhtHum\": %s,"
-                                     "\"bmpTemp\": %s,\"bmpPress\": %s,\"rainVal\": %d}"),
+                                     "\"bmpTemp\": %s,\"bmpPress\": %s,"
+                                     "\"rainVal\": %d,\"stationId\":\"M0001\"}"),
                       cTemp, cHum, bmpTemp, bmpPres,rainVal);
 }
 void startWifiServer()
@@ -238,18 +298,47 @@ void startWifiServer()
   waitESPCmdEnd();
 }
 
+bool waitStringWifi(String str, bool echo)
+{
+  startMillis=millis();
+  cadena= "";
+  while(cadena.indexOf(str)==-1 && cadena.indexOf("ERROR")==-1)
+  {
+    if((millis()-startMillis)>=5000) return false;
+    while(WIFI.available()>0)
+    {
+      char character = WIFI.read();
+      cadena.concat(character); 
+      if (character == '\n')
+        {
+          if(echo) Serial.print(cadena);
+          if(cadena.indexOf(str)!=-1) return true;
+          else
+          cadena="";
+        }
+    }
+  }
+  
+}
+
+
 int waitESPCmdEnd()
 {
-  char data[10];
-  memset(data, 0, sizeof data);
-  while (strstr(data, "OK") == NULL && strstr(data, ">") == NULL && strstr(data, "SEND OK") == NULL)
+  startMillis=millis();
+  char data[15];
+  while (strstr(data, "OK") == NULL 
+        && strstr(data, ">") == NULL 
+        && strstr(data, "SEND OK") == NULL 
+        && strstr(data, "CLOSED") == NULL)
   {
+    if((millis()-startMillis)>=5000) return false;
     memset(data, 0, sizeof data);
     if (WIFI.available() > 0)
     {
-      WIFI.readBytesUntil('\n', data, 10);
+      WIFI.readBytesUntil('\n', data, 15);
     }
   }
+  
 }
 
 int waitESPGotIp()

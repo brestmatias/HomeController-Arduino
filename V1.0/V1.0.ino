@@ -5,9 +5,9 @@
 #include <EEPROM.h>
 
 //sfhtreg 74hc595
-#define sftData 12     //Ds PIN
-#define sftClock 11   //Sh_CP PIN
-#define sftLatch 10  //ST_cp conectar cap101(100pf) a GND
+#define sftData 12  //Ds PIN
+#define sftClock 11 //Sh_CP PIN
+#define sftLatch 10 //ST_cp conectar cap101(100pf) a GND
 
 #define speakerPin 8
 
@@ -23,13 +23,13 @@ DHT dht(DHTPIN, DHTTYPE);
 
 //Rain Sensor
 #define rainPin 1
-int rainVal=0;
+int rainVal = 0;
 
 char linkId;
 char serialData[256]; //entrada - salida puerto serie
 int lngData;
 char jsonData[150];
-char wifiCmd [20];
+char wifiCmd[20];
 String cadena;
 
 byte shftVal = 0;
@@ -42,19 +42,17 @@ byte shftVal = 0;
 unsigned long millisLoop;
 unsigned long startMillis;
 
-
 void setup()
 {
   pinMode(sftLatch, OUTPUT);   // make the data pin an output
   digitalWrite(sftLatch, LOW); // apago shift
-  pinMode(sftClock, OUTPUT);    // make the clock pin an output
-  pinMode(sftData, OUTPUT);     // make the data pin an output
+  pinMode(sftClock, OUTPUT);   // make the clock pin an output
+  pinMode(sftData, OUTPUT);    // make the data pin an output
 
   Serial.begin(9600);
-  
+
   pinMode(speakerPin, OUTPUT);
   pinMode(rainPin, INPUT);
-
 
   WIFI.begin(14400);
   Serial.println(F("REESTARTING WIFI..."));
@@ -76,14 +74,14 @@ void setup()
   delay(200);
 
   Serial.println(F("Loading Settings..."));
-  shftVal=EEPROM.read(0);
+  shftVal = EEPROM.read(0);
 
   sendToShift();
   Serial.println(F("..NOW IAM BREATHING.."));
 
   blip();
-  
-  millisLoop=millis();
+
+  millisLoop = millis();
 }
 void (*resetFunc)(void) = 0; //reset function @ address 0
 void loop()
@@ -111,9 +109,10 @@ void loop()
   }
   rainVal = analogRead(rainPin);
 
-  if((millis()-millisLoop)>lapseReadings){
-      wifiPostDataA();
-      millisLoop=millis();
+  if ((millis() - millisLoop) > lapseReadings)
+  {
+    wifiPostDataA();
+    millisLoop = millis();
   }
 }
 
@@ -135,84 +134,94 @@ void recibeWifiData()
   }
 }
 
-void wifiPostDataA(){
-    readSensors();
+void wifiPostDataA()
+{
+  readSensors();
 
-    WIFI.flush();
-    WIFI.println(F("AT+CIPSTART=0,\"TCP\",\"monitorv1.herokuapp.com\",80"));//start a TCP connection. 
-    //waitStringWifi("OK",false);
-    waitESPCmdEnd();
+  WIFI.flush();
+  WIFI.println(F("AT+CIPSTART=0,\"TCP\",\"monitorv1.herokuapp.com\",80")); //start a TCP connection.
+  //waitStringWifi("OK",false);
+  waitESPCmdEnd();
 
-    int lngRequest=sprintf_P(serialData,PSTR("POST /api/stationReadings HTTP/1.1\r\n"
-                                    //"Host: 192.168.1.44:3000\r\n"
-                                    "Host: monitorv1.herokuapp.com\r\n"
-                                    "Connection: keep-alive\r\n"
-                                    "Content-Length: %d\r\n"
-                                    "Content-Type: application/json\r\n"
-                                    "Accept: */*\r\n"
-                                    "Accept-Encoding: gzip, deflate, br\r\n"
-                                    "Accept-Language: es-ES,es;q=0.8\r\n"
-                                    "\r\n%s"),strlen(jsonData),jsonData);
-    //Serial.println(serialData);
+  int lngRequest = sprintf_P(serialData, PSTR("POST /api/stationReadings HTTP/1.1\r\n"
+                                              //"Host: 192.168.1.44:3000\r\n"
+                                              "Host: monitorv1.herokuapp.com\r\n"
+                                              "Connection: keep-alive\r\n"
+                                              "Content-Length: %d\r\n"
+                                              "Content-Type: application/json\r\n"
+                                              "Accept: */*\r\n"
+                                              "Accept-Encoding: gzip, deflate, br\r\n"
+                                              "Accept-Language: es-ES,es;q=0.8\r\n"
+                                              "\r\n%s"),
+                             strlen(jsonData), jsonData);
+  //Serial.println(serialData);
 
-    sprintf_P(wifiCmd,PSTR("AT+CIPSEND=0,%d"),lngRequest);
-    WIFI.flush();
-    WIFI.println(wifiCmd);
-    //    waitStringWifi(">",false);
-    waitESPCmdEnd();
-    
-    WIFI.flush();
-    WIFI.println(serialData);
-    //waitStringWifi("SEND OK",false);
-    waitESPCmdEnd();
-    
-    WIFI.flush();
-    WIFI.println(F("AT+CIPCLOSE=0")); 
-    //waitESPCmdEnd();
- }
+  sprintf_P(wifiCmd, PSTR("AT+CIPSEND=0,%d"), lngRequest);
+  WIFI.flush();
+  WIFI.println(wifiCmd);
+  //    waitStringWifi(">",false);
+  waitESPCmdEnd();
+
+  WIFI.flush();
+  WIFI.println(serialData);
+  //waitStringWifi("SEND OK",false);
+  waitESPCmdEnd();
+
+  WIFI.flush();
+  WIFI.println(F("AT+CIPCLOSE=0"));
+  //waitESPCmdEnd();
+}
 
 void togleSalidas()
 {
   char *pch;
   pch = strstr(serialData, "?");
+  if (pch)
+  {
+    if (strstr(pch, "s1=1"))
+      bitSet(shftVal, 0);
+    if (strstr(pch, "s1=0"))
+      bitClear(shftVal, 0);
+    if (strstr(pch, "s2=1"))
+      bitSet(shftVal, 1);
+    if (strstr(pch, "s2=0"))
+      bitClear(shftVal, 1);
+    if (strstr(pch, "s3=1"))
+      bitSet(shftVal, 2);
+    if (strstr(pch, "s3=0"))
+      bitClear(shftVal, 2);
+    if (strstr(pch, "s4=1"))
+      bitSet(shftVal, 3);
+    if (strstr(pch, "s4=0"))
+      bitClear(shftVal, 3);
+    if (strstr(pch, "s5=1"))
+      bitSet(shftVal, 4);
+    if (strstr(pch, "s5=0"))
+      bitClear(shftVal, 4);
+    if (strstr(pch, "s6=1"))
+      bitSet(shftVal, 5);
+    if (strstr(pch, "s6=0"))
+      bitClear(shftVal, 5);
+    if (strstr(pch, "s7=1"))
+      bitSet(shftVal, 6);
+    if (strstr(pch, "s7=0"))
+      bitClear(shftVal, 6);
+    if (strstr(pch, "s8=1"))
+      bitSet(shftVal, 7);
+    if (strstr(pch, "s8=0"))
+      bitClear(shftVal, 7);
 
-  if (strstr(pch, "s1=1"))
-    bitSet(shftVal, 0);
-  if (strstr(pch, "s1=0"))
-    bitClear(shftVal, 0);
-  if (strstr(pch, "s2=1"))
-    bitSet(shftVal, 1);
-  if (strstr(pch, "s2=0"))
-    bitClear(shftVal, 1);
-  if (strstr(pch, "s3=1"))
-    bitSet(shftVal, 2);
-  if (strstr(pch, "s3=0"))
-    bitClear(shftVal, 2);
-  if (strstr(pch, "s4=1"))
-    bitSet(shftVal, 3);
-  if (strstr(pch, "s4=0"))
-    bitClear(shftVal, 3);
-  if (strstr(pch, "s5=1"))
-    bitSet(shftVal, 4);
-  if (strstr(pch, "s5=0"))
-    bitClear(shftVal, 4);
-  if (strstr(pch, "s6=1"))
-    bitSet(shftVal, 5);
-  if (strstr(pch, "s6=0"))
-    bitClear(shftVal, 5);
-  if (strstr(pch, "s7=1"))
-    bitSet(shftVal, 6);
-  if (strstr(pch, "s7=0"))
-    bitClear(shftVal, 6);
-  if (strstr(pch, "s8=1"))
-    bitSet(shftVal, 7);
-  if (strstr(pch, "s8=0"))
-    bitClear(shftVal, 7);
+    sendToShift();
+    EEPROM.update(0, shftVal);
+    memset(jsonData, 0, sizeof jsonData);
+    lngData = sprintf_P(jsonData, PSTR("{\"salida\":%d,\"action\":\"set\",\"status\":\"OK\"}"), shftVal);
+  }
+  else
+  {
+    memset(jsonData, 0, sizeof jsonData);
+    lngData = sprintf_P(jsonData, PSTR("{\"salida\":%d,\"action\":\"read\",\"status\":\"OK\"}"), shftVal);
+  }
 
-  sendToShift();
-  EEPROM.update(0,shftVal);
-  memset(jsonData, 0, sizeof jsonData);
-  lngData = sprintf_P(jsonData, PSTR("{\"salida\":%d,\"action\":1,\"status\":\"OK\"}"), shftVal);
   responseHTTPGet();
 }
 
@@ -243,11 +252,11 @@ void responseHTTPGet()
                                    "Connection: close\r\n\r\n%s"),
                   lngData, jsonData);
   sprintf_P(wifiCmd, PSTR("AT+CIPSEND=%c,%d"), linkId, lng);
-  WIFI.flush(); 
+  WIFI.flush();
   WIFI.println(wifiCmd);
   waitESPCmdEnd();
 
-  WIFI.flush();  
+  WIFI.flush();
   WIFI.println(serialData);
   waitESPCmdEnd();
 
@@ -286,7 +295,7 @@ void readSensors()
   lngData = sprintf_P(jsonData, PSTR("{\"dhtTemp\": %s,\"dhtHum\": %s,"
                                      "\"bmpTemp\": %s,\"bmpPress\": %s,"
                                      "\"rainVal\": %d,\"stationId\":\"M0001\"}"),
-                      cTemp, cHum, bmpTemp, bmpPres,rainVal);
+                      cTemp, cHum, bmpTemp, bmpPres, rainVal);
 }
 void startWifiServer()
 {
@@ -300,45 +309,43 @@ void startWifiServer()
 
 bool waitStringWifi(String str, bool echo)
 {
-  startMillis=millis();
-  cadena= "";
-  while(cadena.indexOf(str)==-1 && cadena.indexOf("ERROR")==-1)
+  startMillis = millis();
+  cadena = "";
+  while (cadena.indexOf(str) == -1 && cadena.indexOf("ERROR") == -1)
   {
-    if((millis()-startMillis)>=5000) return false;
-    while(WIFI.available()>0)
+    if ((millis() - startMillis) >= 5000)
+      return false;
+    while (WIFI.available() > 0)
     {
       char character = WIFI.read();
-      cadena.concat(character); 
+      cadena.concat(character);
       if (character == '\n')
-        {
-          if(echo) Serial.print(cadena);
-          if(cadena.indexOf(str)!=-1) return true;
-          else
-          cadena="";
-        }
+      {
+        if (echo)
+          Serial.print(cadena);
+        if (cadena.indexOf(str) != -1)
+          return true;
+        else
+          cadena = "";
+      }
     }
   }
-  
 }
-
 
 int waitESPCmdEnd()
 {
-  startMillis=millis();
+  startMillis = millis();
   char data[15];
-  while (strstr(data, "OK") == NULL 
-        && strstr(data, ">") == NULL 
-        && strstr(data, "SEND OK") == NULL 
-        && strstr(data, "CLOSED") == NULL)
+  while (strstr(data, "OK") == NULL && strstr(data, ">") == NULL && strstr(data, "SEND OK") == NULL && strstr(data, "CLOSED") == NULL)
   {
-    if((millis()-startMillis)>=5000) return false;
+    if ((millis() - startMillis) >= 5000)
+      return false;
     memset(data, 0, sizeof data);
     if (WIFI.available() > 0)
     {
       WIFI.readBytesUntil('\n', data, 15);
     }
   }
-  
 }
 
 int waitESPGotIp()
@@ -360,7 +367,6 @@ void sendToShift()
   digitalWrite(sftLatch, LOW);
   shiftOut(sftData, sftClock, MSBFIRST, shftVal);
   digitalWrite(sftLatch, HIGH);
-  
 }
 
 void blip()

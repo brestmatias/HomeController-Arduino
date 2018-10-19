@@ -77,11 +77,15 @@ void setup()
   shftVal = EEPROM.read(0);
 
   sendToShift();
+
+  wifiPostDataA();
+
   Serial.println(F("..NOW IAM BREATHING.."));
 
   blip();
 
   millisLoop = millis();
+
 }
 void (*resetFunc)(void) = 0; //reset function @ address 0
 void loop()
@@ -107,7 +111,6 @@ void loop()
     else if (strstr(serialData, "ready"))
       resetFunc();
   }
-  rainVal = analogRead(rainPin);
 
   if ((millis() - millisLoop) > lapseReadings)
   {
@@ -276,6 +279,8 @@ void readSensors()
   char bmpPres[8];
 
   float fData = 0;
+
+  rainVal = analogRead(rainPin);
 
   //Leo Humedad
   fData = dht.readHumidity();
